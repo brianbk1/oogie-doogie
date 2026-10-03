@@ -1,6 +1,7 @@
 // Edit a questionnaire in Excel: download the current version, change it, import it back as a new version.
 import { allQuestions, allSections, EXTRA_SECTION, templateOf } from './master.js';
 import { SECTION_REGISTRY } from './templates.js';
+import { extractText } from './mapping.js';
 
 const TYPES = ['short', 'long', 'choice', 'multi', 'rating', 'number', 'rank', 'file'];
 const UNITS = ['', '$', '%', 'months', 'days', 'people', 'customers'];
@@ -67,6 +68,36 @@ const text = (v) => {
   }
   return String(v).trim();
 };
+// Plain list of questions (Word, PDF, text): one question per line, section headings on their own lines.
+// Guesses the type from the wording; you can change types afterwards.
+export function parseQuestionText(raw) {
+  const lines = String(raw || '').replace(/\r/g, '').split('\n').map((l) => l.replace(/\t/g, ' ').replace(/\s+/g, ' ').trim()).filter(Boolean);
+  const rows = [];
+  let section = 'Questions';
+  const isBullet = (l) => /^(\d+[.)]|[a-z][.)]|[-•*–▪◦]|q\d+[.:)]?)\s+/i.test(l);
+  lines.forEach((line, i) => {
+    const clean = line.replace(/^(\d+[.)]|[a-z][.)]|[-•*–▪◦]|q\d+[.:)]?)\s+/i, '').replace(/\s*_{3,}.*$/, '').trim();
+    const isQ = /\?/.test(clean) || (isBullet(line) && clean.split(' ').length >= 3) || /^(describe|list|explain|rate|rank|provide|share|tell us|please)\b/i.test(clean);
+    const next = lines[i + 1] || '';
+    const looksHeading = !isQ && (/^#+\s/.test(line) || /^(section|part)\s+\w+/i.test(line) || (line.length <= 60 && !/[.?:;,]$/.test(line) && (isBullet(next) || next.endsWith('?')) && !isBullet(line)) || (line === line.toUpperCase() && /[A-Z]/.test(line) && line.length <= 60));
+    if (looksHeading) {
+      const t = line.replace(/^#+\s*/, '').replace(/^(section|part)\s+\w+\s*[:.–-]?\s*/i, '').trim();
+      if (t) section = t === t.toUpperCase() ? t.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()) : t;
+      return;
+    }
+    if (!isQ || clean.length < 6) return;
+    let type = 'long', options = '', unit = '';
+    const opt = clean.match(/[([]\s*([^()[\]]+?(?:\/|,| or )[^()[\]]+?)\s*[)\]]\s*\??$/i);
+    if (/\b(1\s*[-–to]+\s*5|scale of 1|rate)\b/i.test(clean)) type = 'rating';
+    else if (/\b(how many|number of|percent|percentage|%|\$|how much|headcount|days to)\b/i.test(clean)) { type = 'number'; unit = /percent|%/i.test(clean) ? '%' : /\$|how much|cost|revenue|budget|cash|burn/i.test(clean) ? '$' : /days/i.test(clean) ? 'days' : /people|headcount|employees|staff/i.test(clean) ? 'people' : ''; }
+    else if (opt && opt[1].split(/\/|,| or /i).length >= 2 && opt[1].length < 160) { type = 'choice'; options = opt[1].split(/\/|,| or /i).map((o) => o.trim()).filter(Boolean).join(', '); }
+    else if (clean.length < 60 && /\b(name|who|when|which|what is your|title|date)\b/i.test(clean)) type = 'short';
+    const label = type === 'choice' && opt ? clean.replace(opt[0], '').trim().replace(/[:\s]+$/, '') + (clean.endsWith('?') ? '?' : '') : clean;
+    rows.push({ section, label: label.replace(/\?\?$/, '?'), type, options, unit });
+  });
+  return rows;
+}
+
 const slug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 40);
 
 // Reads an edited questionnaire (Excel from questionnaireWorkbookBlob, or JSON exported by this app).
@@ -105,8 +136,11 @@ export async function readQuestionnaireFile(file, template) {
       if (!g('label')) return;
       rows.push({ section: g('section'), label: g('label'), type: g('type'), options: g('options'), unit: g('unit'), low: g('low'), high: g('high'), help: g('help'), example: g('example'), required: g('required'), id: g('id') });
     });
+  } else if (/\.(docx|pdf|txt|md|csv|html?)$/.test(name)) {
+    rows = parseQuestionText(await extractText(file));
+    if (!rows.length) throw new Error('No questions found in that file. Put one question per line (numbered, bulleted or ending in “?”), with section names on their own lines.');
   } else {
-    throw new Error('Import an .xlsx (from “Download questionnaire”) or a .json file.');
+    throw new Error('Use an Excel (.xlsx), Word (.docx), PDF, text or .json file.');
   }
   if (rows.length < 3) throw new Error('That file has fewer than 3 questions — nothing was changed.');
 

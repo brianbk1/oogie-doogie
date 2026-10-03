@@ -1,4 +1,4 @@
-# The BK Consulting Group — Pre-kickoff app (v3)
+# The BK Consulting Group — Pre-kickoff app (v4)
 
 Runs the pre-kickoff process for business-strategy engagements:
 
@@ -13,7 +13,7 @@ Pick one when you create a client link:
 - **Business strategy** — growth, go-to-market, product, team and finances (13 sections).
 - **Financial system implementation** — a mid-sized company selecting and implementing a new ERP / financial system, run as a strategy project: why now, where the business is going in 3 years, today's systems, finance processes, reporting and data, entities and compliance, selection status, team and change capacity, budget and timing, sponsors, top problems, past attempts, documents (14 sections, ~77 questions). Its AI prompt, starter deck, starter plan (strategy → selection → design → build & data migration → test & train → go-live & hypercare) and suggested checks are tailored to that work.
 
-**Editing a questionnaire:** under **Master questionnaires**, the standard version loads automatically. Click **Download questionnaire (Excel)**, edit, add, reorder or delete rows, then **Import new version** — every new client link uses it (it travels inside the link). **Reset to standard** and **Restore previous version** undo it.
+**Editing a questionnaire:** under **Master questionnaires**, the standard version loads automatically and every question is listed by section — edit, reorder, add or delete right there. **Upload a file of questions** (Excel, Word, PDF or text) to add them or replace the questionnaire. **Answer this questionnaire** fills it in yourself as a new client. Click **Download questionnaire (Excel)**, edit, add, reorder or delete rows, then **Import new version** — every new client link uses it (it travels inside the link). **Reset to standard** and **Restore previous version** undo it.
 
 Questions you add — by hand under **Master questionnaires**, or automatically from an uploaded questionnaire — go into the master of that template. Each template has a fake sample client (sidebar) to demo the flow. To add a template, copy `src/lib/templates/finsys.js` and register it in `src/lib/templates.js`.
 

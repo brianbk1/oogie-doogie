@@ -25,7 +25,7 @@ export default function ResponsesView({ client, update, startInEdit = false }) {
   const setReview = (fn) => update((c) => ({ ...c, review: fn(c.review || {}) }));
   const setFlag = (id, kind) => setReview((r) => ({ ...r, flags: { ...(r.flags || {}), [id]: (r.flags || {})[id] === kind ? '' : kind } }));
   const setNote = (id, text) => setReview((r) => ({ ...r, notes: { ...(r.notes || {}), [id]: text } }));
-  const setAnswer = (id, v) => update((c) => ({ ...c, answers: { ...c.answers, [id]: v } }));
+  const setAnswer = (id, v) => update((c) => ({ ...c, answers: { ...c.answers, [id]: v }, ...(id === 'company_name' && String(v).trim() ? { company: String(v).trim() } : {}) }));
 
   const visible = (q) => {
     if (filter === 'flagged') return !!flags[q.id] || !!checks[q.id];

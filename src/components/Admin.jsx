@@ -174,7 +174,10 @@ export default function Admin() {
           {view.kind === 'home' && <Home onNew={() => setView({ kind: 'new' })} onSample={() => loadSample('strategy')} />}
           {view.kind === 'new' && <NewClient onCreated={async (c) => { await refresh(); open(c.id, 'link'); }} onCancel={() => setView({ kind: 'home' })} />}
           {view.kind === 'map' && <MapFlow pending={view.pending} clients={clients} onCancel={() => setView({ kind: client ? 'client' : 'home' })} onDone={async (id, note) => { await refresh(); open(id, 'responses', note); }} />}
-          {view.kind === 'master' && <MasterQuestions />}
+          {view.kind === 'master' && <MasterQuestions onAnswer={async (template) => {
+            const c = await saveClient({ id: newClientId(), createdAt: new Date().toISOString(), template, company: 'New client (answered here)', questions: allQuestions(null, template), answers: { company_name: '' }, files: {}, review: {}, status: 'draft', fillByHand: true });
+            await refresh(); open(c.id, 'responses', 'Answer the questions below — type the company name first. Everything saves as you go; switch to Deck when you are done.');
+          }} />}
           {view.kind === 'settings' && <Settings onRestored={refresh} />}
           {view.kind === 'client' && client && (
             <>
