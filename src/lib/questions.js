@@ -113,6 +113,7 @@ export const BUILT_IN_QUESTIONS = [
   { id: 'board_involvement', section: 'people', type: 'choice', label: 'How involved is your board in this work?', options: ['Not involved', 'Informed', 'Will review the plan', 'Sponsoring it'] },
 
   // ---- Files
+  { id: 'file_answers', section: 'files', type: 'file', label: 'Your answers in another format (optional)', help: 'Filled in our questions in Word, Excel or a PDF instead? Attach it here — no need to retype anything.' },
   { id: 'file_pitch', section: 'files', type: 'file', label: 'Pitch or company overview deck' },
   { id: 'file_financials', section: 'files', type: 'file', label: 'Financials (P&L, budget, model)' },
   { id: 'file_board', section: 'files', type: 'file', label: 'Latest board deck' },

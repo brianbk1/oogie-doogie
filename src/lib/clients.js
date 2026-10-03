@@ -17,7 +17,7 @@ export async function saveClient(client) {
   const c = { ...client, updatedAt: new Date().toISOString() };
   await idbSet(`client:${c.id}`, c);
   const idx = (await listClients()).filter((x) => x.id !== c.id);
-  idx.unshift({ id: c.id, company: c.company || c.answers?.company_name || 'Untitled client', status: c.status || 'draft', updatedAt: c.updatedAt, linkId: c.linkId || '' });
+  idx.unshift({ id: c.id, company: c.company || c.answers?.company_name || 'Untitled client', status: c.status || 'draft', updatedAt: c.updatedAt, linkId: c.linkId || '', template: c.template || 'strategy' });
   await idbSet(INDEX, idx);
   return c;
 }

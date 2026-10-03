@@ -37,9 +37,9 @@ export async function buildResponseZip({ link, questions, answers, complete, get
   Object.keys(fileMeta).forEach((k) => { plain[k] = fileMeta[k]; });
   const company = String(answers.company_name || link?.company || '').trim();
   const doc = {
-    format: FORMAT, version: 1, linkId: link?.id || 'open', company,
+    format: FORMAT, version: 1, linkId: link?.id || 'open', template: link?.template || 'strategy', company,
     complete: !!complete, savedAt: new Date().toISOString(),
-    questions: questions.map(({ id, section, type, label, options, unit, low, high, custom }) => ({ id, section, type, label, options, unit, low, high, custom })),
+    questions: questions.map(({ id, section, type, label, options, unit, low, high, custom, template }) => ({ id, section, type, label, options, unit, low, high, custom, template })),
     answers: plain,
   };
   zip.file('responses.json', JSON.stringify(doc, null, 2));

@@ -1,10 +1,28 @@
-# The BK Consulting Group — Pre-kickoff app (v1)
+# The BK Consulting Group — Pre-kickoff app (v2)
 
 Runs the pre-kickoff process for business-strategy engagements:
 
 1. **Client questionnaire** — you send a link; the client answers one section per screen (progress bar, autosave on their device, "save progress file" to resume on another computer, examples of good answers, mixed question types, optional document uploads). At the end they download one response file (.zip) and email it to you.
 2. **Your review** — import the response file (or a questionnaire completed in Word / PDF / Excel / text — an AI maps it onto your questions, and anything new is added to your master questionnaire). Flag answers as vague or contradictory (the app suggests some, e.g. runway that doesn't match cash ÷ burn), add notes, copy a follow-up email.
 3. **Kickoff deck + project plan** — "Copy prompt" → paste into ChatGPT / Claude / Copilot → paste the JSON reply → **Build deck + plan** (one click, with Undo). Or **Draft with AI** via the Vercel function. Or **Start from the answers** (no AI). AI-drafted slides and plan rows are tagged "AI" until you verify them. Exports: PowerPoint (native editable charts + speaker notes), PDF, and Excel (live Gantt).
+
+## Questionnaire templates
+
+Pick one when you create a client link:
+
+- **Business strategy** — growth, go-to-market, product, team and finances (13 sections).
+- **Financial system implementation** — a mid-sized company selecting and implementing a new ERP / financial system, run as a strategy project: why now, where the business is going in 3 years, today's systems, finance processes, reporting and data, entities and compliance, selection status, team and change capacity, budget and timing, sponsors, top problems, past attempts, documents (14 sections, ~77 questions). Its AI prompt, starter deck, starter plan (strategy → selection → design → build & data migration → test & train → go-live & hypercare) and suggested checks are tailored to that work.
+
+Questions you add — by hand under **Master questionnaires**, or automatically from an uploaded questionnaire — go into the master of that template. Each template has a fake sample client (sidebar) to demo the flow. To add a template, copy `src/lib/templates/finsys.js` and register it in `src/lib/templates.js`.
+
+## Answer online, or upload answers
+
+The client's welcome screen offers two paths:
+
+- **Answer here** — one section per screen, autosaves on their device.
+- **Upload your answers** — download the questions as an Excel workbook, fill in the yellow column, upload it back (answers load exactly, the client can review them online, then sends the response file). Or upload a Word / PDF / other document they already completed; it rides along in the response file and the workspace offers **Map those answers** (AI mapping you review).
+
+In your workspace you can also: import the filled-in Excel file directly (exact, no AI), download the Excel version from a client's **Link** tab to email instead of a link, or **Answer the questions yourself** (e.g. during a call).
 
 ## Where data lives (no database)
 
@@ -28,7 +46,7 @@ New Vercel projects run functions with Fluid compute (up to 300 s on Hobby), whi
 ### Routes
 - `/` — your workspace (admin). There is no login: everything shown comes from your own browser's storage, so another visitor sees an empty workspace.
 - `/#/q/…` — a client's questionnaire link (create it under **+ New client link**).
-- `/#/questionnaire` — the generic questionnaire with no client name.
+- `/#/questionnaire` (or `/#/questionnaire/finsys`) — a generic questionnaire with no client name.
 
 ## Run locally
 
@@ -47,7 +65,10 @@ Changes: BKCG palette; charts come from questionnaire answers or inline numbers;
 
 ```
 api/ai.js                     Vercel function → Anthropic (deck drafting + questionnaire mapping)
-src/lib/questions.js          Built-in questionnaire (sections, questions, examples)
+src/lib/questions.js          Business-strategy questionnaire (sections, questions, examples)
+src/lib/templates/finsys.js   Financial-system-implementation questionnaire
+src/lib/templates.js          Template registry
+src/lib/offline.js            Excel version of the questionnaire, and reading it back exactly
 src/lib/master.js             Built-in + added questions ("master questionnaire")
 src/lib/link.js               Pack/unpack client links
 src/lib/responseFile.js       The client's response .zip (responses.json + readable answers.html + files/)
@@ -60,4 +81,4 @@ src/lib/sample.js             Fake client + sample AI reply for demos
 src/components/…              Questionnaire, Admin, ResponsesView, MapFlow, DeckBuilder, PlanBuilder, MasterQuestions
 ```
 
-To change the built-in questions, edit `src/lib/questions.js`. Questions you add in the app live under **Master questionnaire** (export them to keep a copy).
+To change the built-in questions, edit `src/lib/questions.js` or `src/lib/templates/finsys.js`. Questions you add in the app live under **Master questionnaire** (export them to keep a copy).

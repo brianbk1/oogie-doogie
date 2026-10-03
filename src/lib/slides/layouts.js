@@ -752,7 +752,7 @@ function timeline(o, slide, deck, state, n, total) {
   const hasMs = rows.some((r) => r.milestone);
   const rh = Math.min(0.78, (bottom - top - (hasMs ? 0.45 : 0.1)) / rows.length);
   o.rect(M, BODY_TOP, PAGE.w - 2 * M, bottom - BODY_TOP, P.card, P.line);
-  const every = weeks > 16 ? 2 : 1;
+  const every = weeks > 32 ? 4 : weeks > 16 ? 2 : 1;
   for (let w = 1; w <= weeks; w++) {
     const x = x0 + (w - 1) * wk;
     if (w > 1) o.line(x, BODY_TOP + 0.36, x, top + rows.length * rh, w % 4 === 1 ? P.line : 'EEEEEB', 0.5);

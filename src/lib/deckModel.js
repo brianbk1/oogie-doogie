@@ -2,7 +2,7 @@
 // parsing the AI's JSON reply, and a starter deck/plan built without AI.
 import { LAYOUTS, filled } from './slides/layouts.js';
 import { formatAnswer, formatNumber, isAnswered, parseNumber } from './questions.js';
-import { allSections } from './master.js';
+import { allSections, templateOf } from './master.js';
 
 export const slideId = () => `s${Math.random().toString(36).slice(2, 9)}`;
 export const rowId = () => `r${Math.random().toString(36).slice(2, 9)}`;
@@ -41,10 +41,24 @@ const RATING_AREAS = [
   ['rate_marketing', 'Marketing'], ['rate_pricing', 'Pricing confidence'], ['rate_org', 'Leadership alignment'], ['plan_confidence', 'Confidence in plan'],
 ];
 
+const PAIN_AREAS = [['fs_pain_close', 'Month-end close'], ['fs_pain_ap', 'Accounts payable'], ['fs_pain_ar', 'Billing and collections'], ['fs_pain_consol', 'Consolidation'], ['fs_pain_fpa', 'Budgeting and forecasting']];
+const READINESS = [['fs_strategy_clarity', 'Strategy clarity'], ['fs_system_satisfaction', 'Fit of today’s system'], ['fs_data_quality', 'Trust in the numbers'], ['fs_change_capacity', 'Capacity for change']];
+
 export function chartLibrary(answers = {}) {
   const out = [];
   const ratings = RATING_AREAS.filter(([id]) => Number.isFinite(num(answers, id)));
   if (ratings.length >= 3) out.push({ id: 'ratings', label: 'Self-assessment by area (1–5)', data: { title: 'How leadership rates each area (1 = weak, 5 = strong)', type: 'bar', labels: ratings.map(([, l]) => l), values: ratings.map(([id]) => num(answers, id)), unit: '/5', source: SRC } });
+
+  const pains = PAIN_AREAS.filter(([id]) => Number.isFinite(num(answers, id)));
+  if (pains.length >= 3) out.push({ id: 'pain', label: 'Where finance hurts most (1–5)', data: { title: 'How painful each finance process is today (5 = very painful)', type: 'bar', labels: pains.map(([, l]) => l), values: pains.map(([id]) => num(answers, id)), unit: '/5', source: SRC } });
+  const ready = READINESS.filter(([id]) => Number.isFinite(num(answers, id)));
+  if (ready.length >= 3) out.push({ id: 'readiness', label: 'Readiness for the project (1–5)', data: { title: 'Readiness for a new financial system (5 = strong)', type: 'bar', labels: ready.map(([, l]) => l), values: ready.map(([id]) => num(answers, id)), unit: '/5', source: SRC } });
+  const cd = num(answers, 'fs_close_days'), ct = num(answers, 'fs_close_target');
+  if (Number.isFinite(cd) && Number.isFinite(ct)) out.push({ id: 'close', label: 'Close days: today vs. target', data: { title: 'Business days to close the month', type: 'bar', labels: ['Today', 'Target'], values: [cd, ct], unit: '', source: SRC } });
+  if (Array.isArray(answers.fs_priority_rank) && answers.fs_priority_rank.length >= 3) {
+    const r = answers.fs_priority_rank.slice(0, 8);
+    out.push({ id: 'fs_priorities', label: 'What the system must improve, ranked', data: { title: 'What the new system must improve (longest bar = #1)', type: 'bar', labels: r.map((x, i) => `${i + 1}. ${x}`), values: r.map((_, i) => r.length - i), unit: '', source: SRC } });
+  }
 
   const probs = [1, 2, 3].filter((i) => str(answers[`problem_${i}`]) && Number.isFinite(num(answers, `problem_${i}_sev`)));
   if (probs.length >= 2) out.push({ id: 'problems', label: 'Top problems by severity', data: { title: 'Severity of the top problems (1–5)', type: 'bar', labels: probs.map((i) => clip(answers[`problem_${i}`], 34)), values: probs.map((i) => num(answers, `problem_${i}_sev`)), unit: '/5', source: SRC } });
@@ -188,6 +202,10 @@ export function computedChecks(answers) {
   }
   const grr = num(answers, 'grr'), nrr = num(answers, 'nrr');
   if (Number.isFinite(grr) && Number.isFinite(nrr) && nrr < grr) out.push(`Net retention (${nrr}%) is below gross retention (${grr}%) — that is impossible by definition; one of the two is wrong`);
+  const cd = num(answers, 'fs_close_days'), ct = num(answers, 'fs_close_target');
+  if (Number.isFinite(cd) && Number.isFinite(ct)) out.push(`Close: ${cd} days today vs. ${ct}-day target (${Math.max(0, cd - ct)} days to remove)`);
+  const ent = num(answers, 'fs_entities'), users = num(answers, 'fs_users');
+  if (/Under \$150K|\$150K–\$300K/.test(String(answers.budget || '')) && ((Number.isFinite(ent) && ent >= 3) || (Number.isFinite(users) && users >= 75))) out.push(`Budget (${answers.budget}) looks low for ${Number.isFinite(ent) ? `${ent} entities` : ''}${Number.isFinite(users) ? ` and ${users} users` : ''} — confirm what it covers`);
   const share = num(answers, 'top_customer_share');
   if (Number.isFinite(share) && share >= 20) out.push(`Customer concentration: largest customer is ${share}% of revenue`);
   return out;
@@ -217,10 +235,25 @@ export function buildBrief(client) {
   return L.join('\n');
 }
 
+const SLIDES_FINSYS = `1. layout "summary" — executive summary of what we heard. items: up to 6 {"answer": "≤12 words", "value": "short number", "tone": "...", "label": "≤3 words"}.
+2. layout "bignumbers" — current state of finance and systems (e.g. close days, entities, critical spreadsheets): 3 items {"icon": one of up|down|cash|people|target|alert|chart|check|calendar|clock|flag|shield, "value": "≤2 words", "label": "≤8 words", "sub": "≤8 words", "tone": "..."}.
+3. layout "hero" — where finance hurts most, or readiness: "chart" + stats: up to 3 {"value", "label" ≤8 words, "tone"}.
+4. layout "ranked" — key problems ranked, most severe first: items up to 5 {"title": "≤10 words", "detail": "≤18 words evidence", "score": "1"–"5", "tone"}.
+5. layout "cards" — what the new system must enable for the 3-year strategy (not features): 3–4 cards {"title": "≤8 words", "body": "≤30 words, tied to the strategy", "tone"}.
+6. layout "decisions" — proposed focus areas and the key decisions to make first (e.g. operating model, chart of accounts and entity design, selection approach): exactly 3 items {"title": "≤8 words", "body": "≤30 words: what, who, by when", "why": "≤12 words: the data point"}.
+7. layout "compare" — today vs. future state: up to 4 rows {"icon", "from": "≤8 words", "to": "≤8 words", "why": "≤10 words"}.
+8. layout "cards" — implementation risks (budget vs. scope, data, people and change capacity, timing): 3–4 cards with tone "bad" or "warn".
+9. layout "timeline" — roadmap to go-live: leave "items" empty so it fills from the plan; give a strong title and a takeaway.`;
+
+const PLAN_FINSYS = `PROJECT PLAN — from kickoff to go-live and hypercare, sized to the brief (typically 30–45 weeks; respect the target go-live and blackout periods). Phases: Strategy & requirements, Selection (skip or shorten if a vendor is already chosen), Design, Build & data migration, Test & train, Go-live & hypercare. Workstreams such as Process design, Chart of accounts & entities, Data migration, Integrations, Reporting, Change & training, Governance. 18–30 rows. Owners are real names or roles from the brief, "BKCG", or "Implementation partner". Mark 5–7 milestones (e.g. requirements signed off, vendor selected, design signed off, data migration rehearsal, go/no-go, go-live).`;
+
+const PLAN_STRATEGY = `PROJECT PLAN — about 12 weeks (6–16 if the brief justifies it). Phases such as Discover, Diagnose, Design, Plan & mobilize; workstreams follow the focus areas. 12–25 rows. Owners are real names or roles from the brief, or "BKCG". Mark 3–5 milestones.`;
+
 export function buildPrompt(client) {
   const charts = chartLibrary(client.answers);
   const consultant = 'The BK Consulting Group';
-  return `You are a senior strategy consultant at ${consultant} preparing a KICKOFF deck and a project plan for a new business-strategy engagement. Use only the brief below.
+  const fin = client.template === 'finsys';
+  return `You are a senior strategy consultant at ${consultant} preparing a KICKOFF deck and a project plan for a new ${templateOf(client.template).engagement}. Use only the brief below.
 
 ${buildBrief(client)}
 
@@ -232,7 +265,7 @@ RULES
 - Tone values: "good", "bad", "warn" or "neutral". Severity scores are "1"–"5" as strings.
 
 SLIDES TO WRITE (in this order)
-1. layout "summary" — executive summary of what we heard. items: up to 6 {"answer": "≤12 words", "value": "short number", "tone": "...", "label": "≤3 words"}.
+${fin ? SLIDES_FINSYS : `1. layout "summary" — executive summary of what we heard. items: up to 6 {"answer": "≤12 words", "value": "short number", "tone": "...", "label": "≤3 words"}.
 2. layout "bignumbers" — current state: 3 items {"icon": one of up|down|cash|people|target|alert|chart|check|calendar|clock|flag|shield, "value": "≤2 words", "label": "≤8 words", "sub": "≤8 words", "tone": "..."}.
 3. layout "hero" — current state, the one chart that matters most: "chart" + stats: up to 3 {"value", "label" ≤8 words, "tone"}.
 4. layout "ranked" — key problems ranked, most severe first: items up to 5 {"title": "≤10 words", "detail": "≤18 words evidence", "score": "1"–"5", "tone"}.
@@ -240,14 +273,14 @@ SLIDES TO WRITE (in this order)
 6. layout "decisions" — proposed focus areas: exactly 3 items {"title": "≤8 words", "body": "≤30 words: what we will do, who, by when", "why": "≤12 words: the data point"}.
 7. layout "compare" — today vs. proposed: up to 4 rows {"icon", "from": "≤8 words", "to": "≤8 words", "why": "≤10 words"}.
 8. layout "cards" — risks to the engagement and the business: 3–4 cards with tone "bad" or "warn".
-9. layout "timeline" — next steps: leave "items" empty so it fills from the plan; give a strong title and a takeaway.
+9. layout "timeline" — next steps: leave "items" empty so it fills from the plan; give a strong title and a takeaway.`}
 Every slide: {"layout", "section": "≤3 words", "title", "takeaway": "≤20 words", "notes"}.
 
 CHARTS ("chart" on the hero slide) — use one of these ids, computed from the client's answers:
 ${charts.length ? charts.map((c) => `- "${c.id}": ${c.label}`).join('\n') : '- (none available)'}
 or an inline chart: {"type": "bar"|"line", "title": "...", "labels": [...], "values": [numbers], "unit": "$"|"%"|"x"|"mo"|"/5"|"", "source": "..."}.
 
-PROJECT PLAN — about 12 weeks (6–16 if the brief justifies it). Phases such as Discover, Diagnose, Design, Plan & mobilize; workstreams follow the focus areas. 12–25 rows. Owners are real names or roles from the brief, or "BKCG". Mark 3–5 milestones.
+${fin ? PLAN_FINSYS : PLAN_STRATEGY}
 
 OUTPUT FORMAT: one JSON object in a \`\`\`json block, nothing else:
 {"deck": {"title": "≤8 words", "subtitle": "≤12 words", "health": "Green"|"Yellow"|"Red", "slides": [ ... ]},
@@ -256,6 +289,7 @@ OUTPUT FORMAT: one JSON object in a \`\`\`json block, nothing else:
 
 // ---------------------------------------------------------------- Starter deck + plan (no AI)
 export function starterPlan(client) {
+  if (client.template === 'finsys') return starterPlanFinsys(client);
   const a = client.answers || {};
   const ceo = str(a.respondent).split(',')[0] || 'CEO';
   const dm = str(a.decision_maker) || ceo;
@@ -280,6 +314,7 @@ export function starterPlan(client) {
 }
 
 export function starterDeck(client) {
+  if (client.template === 'finsys') return starterDeckFinsys(client);
   const a = client.answers || {};
   const company = str(a.company_name || client.company) || 'Client';
   const S = (layout, x) => ({ ...normalizeSlide({ layout, ...x }), auto: true });
@@ -338,6 +373,94 @@ export function starterDeck(client) {
     company, audience: 'Leadership team', presenters: 'The BK Consulting Group', date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
     confidential: true, health: '', sourceNote: 'Based on the pre-kickoff questionnaire. Numbers are as reported by the client and not yet verified.',
     fileStem: `${company}-kickoff-deck`,
+    slides: [{ id: slideId(), kind: 'title' }, ...slides, { id: slideId(), kind: 'facts' }],
+  };
+}
+
+// ---------------------------------------------------------------- Financial system template: starter plan + deck
+function starterPlanFinsys(client) {
+  const a = client.answers || {};
+  const cfo = str(a.respondent).split(',')[0] || 'CFO';
+  const dm = str(a.decision_maker) || cfo;
+  const selected = /Vendor selected|Contract signed|Implementation under way/.test(String(a.fs_selection_stage || ''));
+  const R = (phase, workstream, task, owner, start, weeks, deliverable, milestone = false) => ({ phase, workstream, task, owner, start, weeks, deliverable, milestone });
+  const sel = selected ? 0 : 6; // weeks added for a selection phase
+  const rows = [
+    R('Strategy & requirements', 'Governance', 'Kickoff, charter and steering committee', `BKCG, ${dm}`, 1, 1, 'Project charter', true),
+    R('Strategy & requirements', 'Strategy', 'Align system scope to 3-year strategy', `BKCG, ${cfo}`, 1, 3, 'Future-state operating model'),
+    R('Strategy & requirements', 'Process design', 'Current-state process maps (close, AP, AR, consolidation)', 'BKCG, controllers', 2, 3, 'Process maps and pain points'),
+    R('Strategy & requirements', 'Process design', 'Prioritized requirements', 'BKCG, finance team', 4, 2, 'Requirements signed off', true),
+    ...(selected ? [] : [
+      R('Selection', 'Selection', 'Vendor shortlist and scripted demos', 'BKCG, selection team', 6, 4, 'Demo scorecards'),
+      R('Selection', 'Selection', 'Partner proposals and reference calls', 'BKCG', 7, 3, 'Partner comparison'),
+      R('Selection', 'Governance', 'Selection decision and contract', dm, 10, 2, 'Vendor and partner selected', true),
+    ]),
+    R('Design', 'Chart of accounts & entities', 'Chart of accounts and entity design', 'Implementation partner, controller', 6 + sel, 4, 'COA and entity design'),
+    R('Design', 'Reporting', 'Management reporting and KPI design', 'BKCG, FP&A', 7 + sel, 3, 'Report catalog'),
+    R('Design', 'Integrations', 'Integration design', 'IT lead, implementation partner', 7 + sel, 3, 'Integration specs'),
+    R('Design', 'Governance', 'Design sign-off', `${dm}`, 10 + sel, 1, 'Signed-off design', true),
+    R('Build & data migration', 'Configuration', 'System configuration', 'Implementation partner', 11 + sel, 8, 'Configured system'),
+    R('Build & data migration', 'Data migration', 'Data cleanup and mapping', 'Controller, BKCG', 9 + sel, 8, 'Clean master data'),
+    R('Build & data migration', 'Data migration', 'Migration rehearsals (2)', 'Implementation partner', 16 + sel, 4, 'Rehearsal sign-off', true),
+    R('Build & data migration', 'Integrations', 'Build and test integrations', 'IT lead, implementation partner', 13 + sel, 6, 'Working integrations'),
+    R('Test & train', 'Testing', 'User acceptance testing', 'Finance team', 20 + sel, 4, 'UAT sign-off'),
+    R('Test & train', 'Change & training', 'Role-based training', 'BKCG, implementation partner', 22 + sel, 3, 'Trained users'),
+    R('Test & train', 'Governance', 'Go / no-go decision', `${dm}, steering committee`, 24 + sel, 1, 'Go decision', true),
+    R('Go-live & hypercare', 'Cutover', 'Cutover and go-live', 'Implementation partner, controller', 25 + sel, 1, 'Live system', true),
+    R('Go-live & hypercare', 'Cutover', 'Hypercare and first close on the new system', 'All', 26 + sel, 5, 'First close completed', true),
+  ];
+  return normalizePlan({ rows });
+}
+
+function starterDeckFinsys(client) {
+  const a = client.answers || {};
+  const company = str(a.company_name || client.company) || 'Client';
+  const S = (layout, x) => ({ ...normalizeSlide({ layout, ...x }), auto: true });
+  const cd = num(a, 'fs_close_days'), ct = num(a, 'fs_close_target'), ent = num(a, 'fs_entities'), sheets = num(a, 'fs_spreadsheets'), users = num(a, 'fs_users');
+  const slides = [];
+  slides.push(S('summary', { section: 'Executive summary', title: `${company} needs a finance platform built for where it is going`, items: [] }));
+  const big = [];
+  if (Number.isFinite(cd)) big.push({ icon: 'calendar', value: `${cd} days`, label: 'To close the month', sub: Number.isFinite(ct) ? `Target: ${ct} days` : '', tone: cd > 10 ? 'bad' : cd > 6 ? 'warn' : 'good' });
+  if (Number.isFinite(ent)) big.push({ icon: 'flag', value: String(ent), label: 'Legal entities to consolidate', sub: str(a.fs_current_gl, 40), tone: ent >= 3 ? 'warn' : 'neutral' });
+  if (Number.isFinite(sheets)) big.push({ icon: 'alert', value: String(sheets), label: 'Critical spreadsheets in the close', sub: Number.isFinite(users) ? `${users} future system users` : '', tone: sheets >= 10 ? 'bad' : 'warn' });
+  slides.push(S('bignumbers', { section: 'Current state', title: Number.isFinite(cd) && Number.isFinite(ent) ? `A ${cd}-day close across ${ent} entities runs on spreadsheets` : 'Where finance and systems stand today', items: big.slice(0, 3) }));
+  const lib = chartLibrary(a);
+  const pain = lib.find((c) => c.id === 'pain');
+  if (pain) {
+    const pairs = pain.data.labels.map((l, i) => [l, pain.data.values[i]]).sort((x, y) => y[1] - x[1]);
+    slides.push(S('hero', { section: 'Where it hurts', title: `${pairs[0][0]} is the most painful process (${pairs[0][1]}/5)`, chart: 'pain', stats: pairs.slice(0, 2).map(([l, v]) => ({ value: `${v}/5`, label: `${l}`, tone: v >= 4 ? 'bad' : 'warn' })) }));
+  }
+  const probs = [1, 2, 3].map((i) => ({ title: clip(a[`problem_${i}`], 80), score: String(num(a, `problem_${i}_sev`) || ''), detail: '' })).filter((p) => p.title);
+  probs.sort((x, y) => (Number(y.score) || 0) - (Number(x.score) || 0));
+  if (probs.length) slides.push(S('ranked', { section: 'Key problems', title: `${probs.length} problems the new system must solve, led by ${clip(probs[0].title, 50).replace(/\.$/, '').toLowerCase()}`, items: probs }));
+  const enable = [];
+  if (str(a.fs_cant_do)) enable.push({ title: 'Decisions the business cannot make today', body: clip(a.fs_cant_do, 170), tone: 'good' });
+  if (str(a.fs_report_gaps)) enable.push({ title: 'Reporting leaders are missing', body: clip(a.fs_report_gaps, 170), tone: 'good' });
+  if (Array.isArray(a.fs_growth_moves) && a.fs_growth_moves.length) enable.push({ title: 'Growth the system must absorb', body: a.fs_growth_moves.join(', '), tone: 'good' });
+  slides.push(S('cards', { section: 'Strategy fit', title: 'The system has to serve the 3-year strategy, not just replace software', cards: enable.length ? enable : [{ title: 'To be developed', body: 'Draft with AI or write what the strategy needs from the system.', tone: 'neutral' }] }));
+  slides.push(S('decisions', { section: 'Focus areas', title: 'Three decisions come before choosing software', items: [
+    { title: 'Agree the future operating model', body: 'How acquired companies run, what is centralized, which processes change — signed off by week 4.', why: str(a.fs_operating_model, 60) },
+    { title: 'Redesign chart of accounts and entities', body: 'One chart of accounts and reporting structure before data moves.', why: str(a.fs_coa, 60) },
+    { title: 'Select system and partner on requirements', body: 'Scripted demos against prioritized requirements, fixed-scope partner proposal.', why: str(a.fs_selection_stage, 60) },
+  ] }));
+  slides.push(S('compare', { section: 'Today vs. future', title: 'From spreadsheets and manual work to one consolidated platform', rows: [
+    { icon: 'calendar', from: Number.isFinite(cd) ? `${cd}-day close` : 'Slow close', to: Number.isFinite(ct) ? `${ct}-day close` : 'Faster close', why: 'Time back for analysis' },
+    { icon: 'flag', from: 'Consolidation in Excel', to: 'Automated multi-entity consolidation', why: Number.isFinite(ent) ? `${ent} entities and growing` : 'Ready for acquisitions' },
+    { icon: 'chart', from: 'Reports built by hand', to: 'Self-serve management reporting', why: 'Leaders see margin and cash sooner' },
+  ] }));
+  const risks = [];
+  const checks = computedChecks(a).filter((c) => /Budget/.test(c));
+  if (checks.length) risks.push({ title: 'Budget may not match scope', body: clip(checks[0], 150), tone: 'bad' });
+  if (Number.isFinite(num(a, 'fs_change_capacity')) && num(a, 'fs_change_capacity') <= 2) risks.push({ title: 'Limited capacity for change', body: `Change capacity rated ${num(a, 'fs_change_capacity')}/5; the finance team is already stretched.`, tone: 'warn' });
+  if (str(a.fs_key_person_risk)) risks.push({ title: 'Knowledge held by a few people', body: clip(a.fs_key_person_risk, 150), tone: 'warn' });
+  if (str(a.timing)) risks.push({ title: 'Deadlines and blackout periods', body: clip(a.timing, 150), tone: 'warn' });
+  slides.push(S('cards', { section: 'Risks', title: risks.length ? `${risks.length} risks to manage from day one` : 'Implementation risks', cards: risks.length ? risks.slice(0, 4) : [{ title: 'To be developed', body: 'Add the risks you see.', tone: 'warn' }] }));
+  slides.push(S('timeline', { section: 'Roadmap', title: str(a.fs_golive) ? `A phased roadmap to go-live (${clip(a.fs_golive, 40).split(/[,—-]/)[0].trim()})` : 'A phased roadmap from requirements to go-live', items: [] }));
+  return {
+    title: `${company}: financial system kickoff`, subtitle: 'What we heard, what the system must enable, and the road to go-live',
+    company, audience: 'Leadership team', presenters: 'The BK Consulting Group', date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+    confidential: true, health: '', sourceNote: 'Based on the pre-kickoff questionnaire. Numbers are as reported by the client and not yet verified.',
+    fileStem: `${company}-financial-system-kickoff`,
     slides: [{ id: slideId(), kind: 'title' }, ...slides, { id: slideId(), kind: 'facts' }],
   };
 }

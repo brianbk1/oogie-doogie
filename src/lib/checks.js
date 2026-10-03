@@ -34,5 +34,12 @@ export function autoChecks(questions, answers) {
   const stageMax = { 'Pre-revenue': 1, 'Early (under $1M revenue)': 1.5e6 };
   if (stageMax[answers.stage] && Number.isFinite(fc) && fc > stageMax[answers.stage]) add('stage', 'contradictory', 'Stage does not match the revenue figures');
   if (Number.isFinite(n('burn')) && n('burn') === 0 && Number.isFinite(runway) && runway > 0 && runway < 60) add('burn', 'contradictory', 'Burn is 0 (profitable) but a runway was given');
+  // Financial system template
+  const cd = n('fs_close_days'), ct = n('fs_close_target');
+  if (Number.isFinite(cd) && Number.isFinite(ct) && ct >= cd) add('fs_close_target', 'contradictory', `Target (${ct} days) is not faster than today (${cd} days)`);
+  const ent = n('fs_entities'), users = n('fs_users');
+  if (Number.isFinite(ent) && ent >= 3 && Number.isFinite(n('fs_pain_consol')) && n('fs_pain_consol') <= 2) add('fs_pain_consol', 'contradictory', `${ent} entities but consolidation rated painless`);
+  if (/Under \$150K|\$150K–\$300K/.test(String(answers.budget || '')) && ((Number.isFinite(ent) && ent >= 3) || (Number.isFinite(users) && users >= 75))) add('budget', 'contradictory', 'Budget looks low for the number of entities and users — confirm what it covers');
+  if (Number.isFinite(n('fs_entities')) && n('fs_entities') > 1 && answers.fs_coa === 'Clean and consistent across entities' && n('fs_pain_consol') >= 4) add('fs_coa', 'contradictory', 'Chart of accounts called consistent, yet consolidation is very painful');
   return out;
 }

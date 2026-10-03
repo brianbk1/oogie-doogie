@@ -1,7 +1,7 @@
 // Builds the sample deck (PPTX + PDF) and project plan (XLSX) from the fake client in src/lib/sample.js.
 // Run: npm run sample   → files land in ./sample-output
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { SAMPLE_ANSWERS, SAMPLE_AI_REPLY } from '../src/lib/sample.js';
+import { SAMPLE_ANSWERS, SAMPLE_AI_REPLY, FINSYS_SAMPLE_ANSWERS, FINSYS_SAMPLE_AI_REPLY } from '../src/lib/sample.js';
 import { allQuestions } from '../src/lib/master.js';
 import { starterDeck, starterPlan, parseAiResult, slideState, buildPrompt, looksLikeOurPrompt } from '../src/lib/deckModel.js';
 import { buildPptx, buildPdf } from '../src/lib/slides/backends.js';
@@ -32,4 +32,18 @@ for (const [name, d, c] of [['sample-deck', deck, aiClient], ['starter-deck', st
 const wb = await buildPlanWorkbook(ai.plan, { company: client.company });
 await wb.xlsx.writeFile(new URL('sample-plan.xlsx', out).pathname);
 writeFileSync(new URL('sample-prompt.txt', out), prompt);
+// 3) Financial system implementation template
+const fin = { template: 'finsys', company: FINSYS_SAMPLE_ANSWERS.company_name, questions: allQuestions([], 'finsys'), answers: FINSYS_SAMPLE_ANSWERS, review: {} };
+const finStarter = starterDeck(fin);
+const finAi = parseAiResult(FINSYS_SAMPLE_AI_REPLY);
+if (!finAi || finAi.slides.length < 8 || !finAi.plan) throw new Error('could not parse the finsys sample reply');
+const finDeck = { ...finStarter, title: finAi.title, subtitle: finAi.subtitle, health: finAi.health, slides: [finStarter.slides[0], ...finAi.slides, finStarter.slides[finStarter.slides.length - 1]] };
+const finState = slideState({ ...fin, plan: finAi.plan });
+writeFileSync(new URL('finsys-deck.pptx', out), await buildPptx(finDeck, finState, 'nodebuffer'));
+writeFileSync(new URL('finsys-deck.pdf', out), Buffer.from((await buildPdf(finDeck, finState)).output('arraybuffer')));
+const finStarterState = slideState({ ...fin, plan: starterPlan(fin) });
+writeFileSync(new URL('finsys-starter-deck.pdf', out), Buffer.from((await buildPdf(finStarter, finStarterState)).output('arraybuffer')));
+await (await buildPlanWorkbook(finAi.plan, { company: fin.company })).xlsx.writeFile(new URL('finsys-plan.xlsx', out).pathname);
+writeFileSync(new URL('finsys-prompt.txt', out), buildPrompt(fin));
+console.log(`OK finsys: ${finDeck.slides.length}-slide deck, ${finAi.plan.rows.length}-row plan, ${fin.questions.length} questions`);
 console.log(`OK: ${deck.slides.length}-slide deck, ${ai.plan.rows.length}-row plan, prompt ${prompt.length} chars → sample-output/`);

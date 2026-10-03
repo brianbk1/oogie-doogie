@@ -5,7 +5,7 @@ import { readLink } from './lib/link.js';
 
 // Hash routes keep everything client-side (no server rewrites, and link data never reaches a server):
 //   #/q/<packed link>  → client questionnaire
-//   #/questionnaire    → generic questionnaire (no client name)
+//   #/questionnaire    → generic questionnaire (no client name); #/questionnaire/finsys for the finance-system template
 //   anything else      → your admin workspace
 export default function App() {
   const [hash, setHash] = useState(window.location.hash);
@@ -16,7 +16,10 @@ export default function App() {
   }, []);
   const link = readLink(hash);
   if (link) return <Questionnaire key={link.id} link={link} />;
-  if (hash.startsWith('#/questionnaire')) return <Questionnaire link={{ id: 'open', company: '', contact: '', consultant: '', email: '', due: '', custom: [] }} />;
+  if (hash.startsWith('#/questionnaire')) {
+    const template = hash.split('/')[2] || 'strategy';
+    return <Questionnaire key={template} link={{ id: `open-${template}`, template, company: '', contact: '', consultant: '', email: '', due: '', custom: [] }} />;
+  }
   if (hash.startsWith('#/q/')) return <BadLink />;
   return <Admin />;
 }

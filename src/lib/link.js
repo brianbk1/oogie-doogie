@@ -8,9 +8,9 @@ export function newLinkId() {
   return Array.from(a, (b) => b.toString(36).padStart(2, '0')).join('').slice(0, 12);
 }
 
-// cfg: { id, company, contact, consultant, email, due, custom: [questions] }
+// cfg: { id, template, company, contact, consultant, email, due, custom: [questions] }
 export function makeLink(cfg, origin = window.location.origin + window.location.pathname) {
-  const payload = { v: 1, id: cfg.id, co: cfg.company || '', to: cfg.contact || '', by: cfg.consultant || '', em: cfg.email || '', due: cfg.due || '', x: cfg.custom || [] };
+  const payload = { v: 1, id: cfg.id, t: cfg.template || 'strategy', co: cfg.company || '', to: cfg.contact || '', by: cfg.consultant || '', em: cfg.email || '', due: cfg.due || '', x: cfg.custom || [] };
   return `${origin.replace(/\/$/, '')}/#/q/${compressToEncodedURIComponent(JSON.stringify(payload))}`;
 }
 
@@ -20,6 +20,6 @@ export function readLink(hash) {
   try {
     const p = JSON.parse(decompressFromEncodedURIComponent(m[1]) || 'null');
     if (!p || p.v !== 1) return null;
-    return { id: String(p.id || 'open'), company: p.co || '', contact: p.to || '', consultant: p.by || '', email: p.em || '', due: p.due || '', custom: Array.isArray(p.x) ? p.x : [] };
+    return { id: String(p.id || 'open'), template: p.t || 'strategy', company: p.co || '', contact: p.to || '', consultant: p.by || '', email: p.em || '', due: p.due || '', custom: Array.isArray(p.x) ? p.x : [] };
   } catch { return null; }
 }

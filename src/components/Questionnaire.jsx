@@ -4,13 +4,14 @@ import { allQuestions, allSections } from '../lib/master.js';
 import { isAnswered } from '../lib/questions.js';
 import { idbGet, idbSet, idbDel, lsGet, lsSet } from '../lib/idb.js';
 import { buildResponseZip, readResponseFile, responseFileName, answeredCount } from '../lib/responseFile.js';
-import { downloadBlob } from '../lib/download.js';
+import { downloadBlob, safeName } from '../lib/download.js';
+import { offlineWorkbookBlob, readOfflineWorkbook } from '../lib/offline.js';
 import BrandBar from './BrandBar.jsx';
 
 const BIG_ATTACHMENTS = 20e6; // most email services cap attachments around 20–25 MB
 
 export default function Questionnaire({ link }) {
-  const questions = useMemo(() => allQuestions(link.custom), [link]);
+  const questions = useMemo(() => allQuestions(link.custom, link.template), [link]);
   const sections = useMemo(() => allSections(questions), [questions]);
   const key = `bkcg-client-${link.id}`;
   const saved = useMemo(() => lsGet(key, null), [key]);
@@ -64,6 +65,35 @@ export default function Questionnaire({ link }) {
     setBusy(false);
   }
 
+  async function downloadOffline() {
+    setBusy(true); setMsg(null);
+    try {
+      downloadBlob(await offlineWorkbookBlob({ questions, link, answers }), `${safeName(company || 'BKCG')}-questionnaire.xlsx`);
+      setMsg({ kind: 'tip', text: 'Downloaded. Fill in the yellow column in Excel, save, then come back to this link and choose “Upload your answers”.' });
+    } catch (e) { setMsg({ kind: 'warn', text: `Could not build the Excel file: ${e.message}` }); }
+    setBusy(false);
+  }
+
+  // One upload button for everything: a saved progress file, our Excel version, or any other document.
+  async function uploadAnswers(file) {
+    setMsg(null); setBusy(true);
+    try {
+      const name = (file.name || '').toLowerCase();
+      if (name.endsWith('.zip') || name.endsWith('.json')) { await resume(file); return; }
+      const wbk = await readOfflineWorkbook(file, questions).catch(() => null);
+      if (wbk) {
+        setAnswers((a) => ({ ...a, ...wbk.answers }));
+        setStep(lastStep);
+        setMsg({ kind: 'tip', text: `Loaded ${wbk.count} answers from your Excel file. Check any section below, then download your response file and send it.` });
+        return;
+      }
+      const q = questions.find((x) => x.id === 'file_answers') || questions.find((x) => x.type === 'file');
+      await addFiles(q, [file]);
+      setStep(lastStep);
+      setMsg({ kind: 'tip', text: `Attached “${file.name}”. Your consultant will map it to the questions, so there is no need to retype anything. Add anything else you like, then download your response file and send it.` });
+    } finally { setBusy(false); }
+  }
+
   async function resume(file) {
     setMsg(null);
     const r = await readResponseFile(file);
@@ -106,14 +136,26 @@ export default function Questionnaire({ link }) {
             </p>
             <div className="q-facts">
               <div className="q-fact"><strong>{sections.length} sections</strong><span>one per screen, with examples of good answers</span></div>
-              <div className="q-fact"><strong>~30 minutes</strong><span>stop any time — it saves on this device</span></div>
+              <div className="q-fact"><strong>~{Math.max(15, Math.round((total * 0.5) / 5) * 5)} minutes</strong><span>stop any time — it saves on this device</span></div>
               <div className="q-fact"><strong>Private</strong><span>answers stay on your computer until you send the file</span></div>
             </div>
             {link.due && <p className="muted" style={{ margin: 0 }}>Please send it back by <strong>{link.due}</strong>.</p>}
             {msg && <div className={`callout ${msg.kind}`}>{msg.text}</div>}
-            <div className="row tight">
-              <button className="btn primary" onClick={() => setStep(1)}>{saved?.step > 0 ? `Continue (${pct}% done)` : 'Start'}</button>
-              <label className="btn">Resume from a saved file…<input type="file" accept=".zip,.json" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) resume(f); }} /></label>
+            <div className="path-grid">
+              <div className="path-card">
+                <strong>Answer here</strong>
+                <span>One section per screen, with examples. Saves as you go on this device.</span>
+                <button className="btn primary" onClick={() => setStep(1)}>{saved?.step > 0 ? `Continue (${pct}% done)` : 'Start answering'}</button>
+              </div>
+              <div className="path-card">
+                <strong>Or upload your answers</strong>
+                <span>Prefer Excel? Download the questions, fill them in, and upload the file. Already answered these in a Word doc or PDF? Upload that instead.</span>
+                <div className="row tight">
+                  <button className="btn" onClick={downloadOffline} disabled={busy}>Download questions (Excel)</button>
+                  <label className="btn">{busy ? 'Reading…' : 'Upload your answers…'}<input type="file" hidden accept=".xlsx,.docx,.pdf,.txt,.csv,.md,.zip,.json,.doc,.xls,.pptx" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) uploadAnswers(f); }} /></label>
+                </div>
+                <span className="muted small">Also opens a progress file you saved earlier.</span>
+              </div>
             </div>
           </div>
         )}

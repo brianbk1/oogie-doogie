@@ -1,30 +1,33 @@
 import { useState } from 'react';
-import { BUILT_IN_QUESTIONS, SECTIONS, TYPE_LABELS, UNITS } from '../lib/questions.js';
-import { loadCustom, saveCustom, cleanQuestion, allQuestions, EXTRA_SECTION } from '../lib/master.js';
+import { TYPE_LABELS, UNITS } from '../lib/questions.js';
+import { loadCustom, saveCustomFor, cleanQuestion, allQuestions, EXTRA_SECTION, sectionOptions, TEMPLATES, templateOf } from '../lib/master.js';
 import { downloadBlob } from '../lib/download.js';
 
-const SECTION_OPTS = [...SECTIONS.filter((s) => s.id !== 'files'), EXTRA_SECTION];
 
 // Questions you have added (by hand or from uploaded questionnaires). Built-in questions are fixed in
 // src/lib/questions.js; added questions travel to clients inside each new link.
 export default function MasterQuestions() {
-  const [list, setList] = useState(loadCustom);
+  const [tpl, setTpl] = useState('strategy');
+  const [list, setList] = useState(() => loadCustom('strategy'));
   const [msg, setMsg] = useState(null);
-  const commit = (next) => { setList(next); saveCustom(next); };
+  const T = templateOf(tpl);
+  const SECTION_OPTS = sectionOptions(tpl);
+  const commit = (next) => { setList(next); saveCustomFor(tpl, next); };
+  const switchTo = (id) => { setTpl(id); setList(loadCustom(id)); setMsg(null); };
   const patch = (i, p) => commit(list.map((q, j) => (j === i ? { ...q, ...p } : q)));
 
   function add() {
-    const taken = new Set(allQuestions(list).map((q) => q.id));
-    commit([...list, cleanQuestion({ label: 'New question', type: 'long', section: EXTRA_SECTION.id }, taken)]);
+    const taken = new Set([...allQuestions(list, tpl), ...loadCustom()].map((q) => q.id));
+    commit([...list, cleanQuestion({ label: 'New question', type: 'long', section: EXTRA_SECTION.id }, taken, tpl)]);
   }
 
   async function importJson(file) {
     try {
       const data = JSON.parse(await file.text());
       const arr = Array.isArray(data) ? data : data.questions || [];
-      const taken = new Set(allQuestions(list).map((q) => q.id));
-      const labels = new Set(allQuestions(list).map((q) => q.label.toLowerCase()));
-      const fresh = arr.filter((q) => q && q.label && !labels.has(String(q.label).toLowerCase())).map((q) => { const c = cleanQuestion(q, taken); taken.add(c.id); return c; });
+      const taken = new Set([...allQuestions(list, tpl), ...loadCustom()].map((q) => q.id));
+      const labels = new Set(allQuestions(list, tpl).map((q) => q.label.toLowerCase()));
+      const fresh = arr.filter((q) => q && q.label && !labels.has(String(q.label).toLowerCase())).map((q) => { const c = cleanQuestion(q, taken, tpl); taken.add(c.id); return c; });
       commit([...list, ...fresh]);
       setMsg({ kind: 'tip', text: `Added ${fresh.length} question${fresh.length === 1 ? '' : 's'}.` });
     } catch { setMsg({ kind: 'warn', text: 'That is not a question list exported from this app.' }); }
@@ -32,11 +35,14 @@ export default function MasterQuestions() {
 
   return (
     <div className="deck" style={{ maxWidth: 1000 }}>
-      <h1>Master questionnaire</h1>
-      <p className="muted" style={{ margin: 0 }}>{BUILT_IN_QUESTIONS.length} built-in questions across {SECTIONS.length} sections, plus {list.length} you have added. Added questions appear in their chosen section for every new link. Links already sent keep the questions they had.</p>
+      <h1>Master questionnaires</h1>
+      <div className="choice-grid">
+        {Object.values(TEMPLATES).map((t) => <button key={t.id} type="button" className={`choice ${tpl === t.id ? 'on' : ''}`} onClick={() => switchTo(t.id)}>{t.label}</button>)}
+      </div>
+      <p className="muted" style={{ margin: 0 }}>{T.description} {T.questions.length} built-in questions across {T.sections.length} sections, plus {list.length} you have added. Added questions appear in their chosen section for every new link that uses this questionnaire. Links already sent keep the questions they had. <a href={`#/questionnaire/${tpl}`} target="_blank" rel="noreferrer">Preview this questionnaire</a></p>
       <div className="row tight">
         <button className="btn primary" onClick={add}>+ Add question</button>
-        <button className="btn" onClick={() => downloadBlob(new Blob([JSON.stringify({ format: 'bkcg-questions', questions: list }, null, 2)], { type: 'application/json' }), 'bkcg-added-questions.json')}>Export added questions</button>
+        <button className="btn" onClick={() => downloadBlob(new Blob([JSON.stringify({ format: 'bkcg-questions', template: tpl, questions: list }, null, 2)], { type: 'application/json' }), `bkcg-added-questions-${tpl}.json`)}>Export added questions</button>
         <label className="btn">Import…<input type="file" accept=".json" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) importJson(f); }} /></label>
       </div>
       {msg && <div className={`callout ${msg.kind}`}>{msg.text}</div>}

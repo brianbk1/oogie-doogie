@@ -1,24 +1,26 @@
 import { useMemo, useState } from 'react';
-import { allQuestions, addToMaster, EXTRA_SECTION, cleanQuestion } from '../lib/master.js';
-import { SECTIONS, TYPE_LABELS, formatAnswer } from '../lib/questions.js';
+import { allQuestions, addToMaster, cleanQuestion, sectionOptions, TEMPLATES, templateOf } from '../lib/master.js';
+import { TYPE_LABELS, formatAnswer } from '../lib/questions.js';
 import { buildMappingPrompt, looksLikeMappingPrompt, parseMapping, coerceAnswer } from '../lib/mapping.js';
 import { callAi, copyText } from '../lib/ai.js';
 import { getClient, saveClient, newClientId } from '../lib/clients.js';
 
-const SECTION_OPTS = [...SECTIONS.filter((s) => s.id !== 'files'), EXTRA_SECTION];
 const show = (v) => (Array.isArray(v) ? v.join(', ') : v === undefined || v === null ? '' : String(v));
 
 // Upload any completed questionnaire → AI matches answers to our questions → you review → apply.
 // Answers to questions we don't have become new questions in the master questionnaire.
 export default function MapFlow({ pending, clients, onDone, onCancel }) {
-  const master = useMemo(() => allQuestions(), []);
-  const prompt = useMemo(() => buildMappingPrompt(master, pending.text, pending.fileName), [master, pending]);
+  const [result, setResult] = useState(null); // { rows: [...], newRows: [...], notes }
   const [target, setTarget] = useState(pending.targetId || 'new');
+  const [newTemplate, setNewTemplate] = useState('strategy');
+  const template = target === 'new' ? newTemplate : clients.find((c) => c.id === target)?.template || 'strategy';
+  const SECTION_OPTS = sectionOptions(template);
+  const master = useMemo(() => allQuestions(null, template), [template]);
+  const prompt = useMemo(() => buildMappingPrompt(master, pending.text, pending.fileName, template), [master, pending, template]);
   const [paste, setPaste] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
-  const [result, setResult] = useState(null); // { rows: [...], newRows: [...], notes }
-  const [showText, setShowText] = useState(false);
+    const [showText, setShowText] = useState(false);
 
   function load(text) {
     if (looksLikeMappingPrompt(text)) { setMsg({ kind: 'warn', text: 'That is the prompt from step 1, not the AI’s answer. Paste it into ChatGPT, Claude or Copilot first, then paste the reply here.' }); return; }
@@ -32,7 +34,7 @@ export default function MapFlow({ pending, clients, onDone, onCancel }) {
     }).filter((r) => r.value !== undefined);
     const taken = new Set(master.map((q) => q.id));
     const newRows = m.newQuestions.map((nq, i) => {
-      const q = cleanQuestion({ ...nq, label: nq.label || nq.question }, taken);
+      const q = cleanQuestion({ ...nq, label: nq.label || nq.question }, taken, template);
       taken.add(q.id);
       return { key: i, q, text: show(nq.answer), include: true };
     });
@@ -49,8 +51,8 @@ export default function MapFlow({ pending, clients, onDone, onCancel }) {
   async function apply() {
     const inc = result.rows.filter((r) => r.include);
     const incNew = result.newRows.filter((r) => r.include && r.q.label.trim());
-    const { ids, added } = addToMaster(incNew.map((r) => r.q));
-    const fresh = allQuestions();
+    const { ids, added } = addToMaster(incNew.map((r) => r.q), template);
+    const fresh = allQuestions(null, template);
     const byId = Object.fromEntries(fresh.map((q) => [q.id, q]));
     const answers = {};
     inc.forEach((r) => {
@@ -60,7 +62,7 @@ export default function MapFlow({ pending, clients, onDone, onCancel }) {
     incNew.forEach((r, i) => { const id = ids[i]; if (id && byId[id]) { const v = coerceAnswer(byId[id], r.q.type === 'multi' || r.q.type === 'rank' ? r.text.split(',') : r.text); if (v !== undefined) answers[id] = v; } });
 
     let client = target !== 'new' ? await getClient(target) : null;
-    if (!client) client = { id: newClientId(), createdAt: new Date().toISOString(), company: '', answers: {}, review: {}, files: {}, questions: [] };
+    if (!client) client = { id: newClientId(), createdAt: new Date().toISOString(), template, company: '', answers: {}, review: {}, files: {}, questions: [] };
     const qmap = new Map([...(client.questions || []), ...fresh].map((q) => [q.id, q]));
     const merged = { ...client.answers, ...answers };
     const saved = await saveClient({
@@ -90,6 +92,13 @@ export default function MapFlow({ pending, clients, onDone, onCancel }) {
           {clients.map((c) => <option key={c.id} value={c.id}>{c.company}</option>)}
         </select>
       </label>
+      {target === 'new' ? (
+        <label className="field" style={{ maxWidth: 420 }}><span className="field-label">Map onto questionnaire</span>
+          <select value={newTemplate} onChange={(e) => { setNewTemplate(e.target.value); setResult(null); }}>
+            {Object.values(TEMPLATES).map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+          </select>
+        </label>
+      ) : <p className="muted small" style={{ margin: 0 }}>Mapping onto the {templateOf(template).label} questionnaire.</p>}
 
       <section className="deck-ai">
         <div className="deck-ai-step"><span className="step-badge">1</span><div>

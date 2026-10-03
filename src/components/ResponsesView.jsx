@@ -7,9 +7,9 @@ import { copyText } from '../lib/ai.js';
 
 const FLAG_LABEL = { vague: 'Vague', contradictory: 'Contradictory' };
 
-export default function ResponsesView({ client, update }) {
+export default function ResponsesView({ client, update, startInEdit = false }) {
   const [filter, setFilter] = useState('all');
-  const [edit, setEdit] = useState(false);
+  const [edit, setEdit] = useState(startInEdit);
   const [openNote, setOpenNote] = useState({});
   const [msg, setMsg] = useState(null);
   const { questions = [], answers = {}, review = {} } = client;

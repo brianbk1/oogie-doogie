@@ -1,7 +1,6 @@
 // Turn any completed questionnaire (Word, PDF, Excel, CSV, text) into plain text, then ask an AI
 // to map it onto the master questions. New questions it finds are added to the master.
-import { SECTIONS } from './questions.js';
-import { EXTRA_SECTION } from './master.js';
+import { sectionOptions } from './master.js';
 import { extractJson } from './deckModel.js';
 
 export const MAP_MARKER = 'QUESTIONNAIRE MAPPING TASK';
@@ -67,12 +66,12 @@ function cellText(v) {
   return String(v).trim();
 }
 
-export function buildMappingPrompt(questions, docText, fileName) {
+export function buildMappingPrompt(questions, docText, fileName, template = 'strategy') {
   const qs = questions.filter((q) => q.type !== 'file').map((q) => {
     const extra = q.options ? ` | options: ${q.options.join(' / ')}` : q.unit ? ` | unit: ${q.unit}` : q.type === 'rating' ? ` | 1 = ${q.low || 'low'}, 5 = ${q.high || 'high'}` : '';
     return `- ${q.id} | ${q.type} | ${q.label}${extra}`;
   }).join('\n');
-  const sections = [...SECTIONS.filter((s) => s.id !== 'files'), EXTRA_SECTION].map((s) => `${s.id} (${s.title})`).join(', ');
+  const sections = sectionOptions(template).map((s) => `${s.id} (${s.title})`).join(', ');
   const doc = String(docText || '').slice(0, MAX_DOC);
   return `${MAP_MARKER} (from "${fileName}")
 Below are (1) the questions in our questionnaire, as "id | type | question", and (2) the text of a questionnaire a client completed, in some other format. Match each answer in the document to the question it answers.
