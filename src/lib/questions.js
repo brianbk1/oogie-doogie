@@ -118,6 +118,19 @@ export const BUILT_IN_QUESTIONS = [
   { id: 'file_financials', section: 'files', type: 'file', label: 'Financials (P&L, budget, model)' },
   { id: 'file_board', section: 'files', type: 'file', label: 'Latest board deck' },
   { id: 'file_other', section: 'files', type: 'file', label: 'Anything else useful' },
+  // ---- Added as standard questions (were sample "added" questions)
+  { id: 'fiscal_year_end', section: 'company', type: 'choice', label: 'When does your fiscal year end?', options: ['December', 'March', 'June', 'September', 'Other'] },
+  { id: 'one_thing', section: 'goals', type: 'long', label: 'If this engagement delivered only one thing, what should it be?', example: 'A decision on which segment to lead with, backed by data the whole leadership team accepts.' },
+  { id: 'stop_doing', section: 'strategy', type: 'long', label: 'What would you stop doing if you had to cut 20% of the team’s effort?', help: 'The answer shows what you already believe is low-value.' },
+  { id: 'half_revenue_customers', section: 'customers', type: 'number', unit: 'customers', label: 'How many customers make up half of your revenue?' },
+  { id: 'best_customer_words', section: 'customers', type: 'long', label: 'What do your best customers say when they recommend you?', example: '“They actually show up for implementation” and “the reporting saves our COO a day a month.”' },
+  { id: 'avg_discount', section: 'gtm', type: 'number', unit: '%', label: 'Average discount off list price (%)' },
+  { id: 'pipeline_coverage', section: 'gtm', type: 'number', unit: '', label: 'Pipeline coverage for next quarter (pipeline ÷ target)', help: 'e.g. 2.5 means pipeline is 2.5 times the target.' },
+  { id: 'new_product_share', section: 'product', type: 'number', unit: '%', label: 'Share of revenue from products launched in the last 2 years (%)' },
+  { id: 'rate_execution', section: 'team', type: 'rating', label: 'Once a decision is made, how well does the team execute it?', low: 'Drifts', high: 'Executes' },
+  { id: 'finance_artifacts', section: 'finance', type: 'multi', label: 'Which of these do you have today?', options: ['Monthly board pack', '13-week cash forecast', 'Annual budget', 'Rolling forecast', 'KPI dashboard', 'Unit economics by segment'] },
+  { id: 'decision_style', section: 'people', type: 'choice', label: 'How do big decisions usually get made?', options: ['CEO decides', 'Leadership consensus', 'Board-driven', 'Depends on the topic'] },
+  { id: 'anything_else', section: 'additional', type: 'long', label: 'Is there anything we didn’t ask that we should have?' },
 ];
 
 export const TYPE_LABELS = {

@@ -11,7 +11,7 @@ import BrandBar from './BrandBar.jsx';
 const BIG_ATTACHMENTS = 20e6; // most email services cap attachments around 20–25 MB
 
 export default function Questionnaire({ link }) {
-  const questions = useMemo(() => allQuestions(link.custom, link.template), [link]);
+  const questions = useMemo(() => allQuestions(link.custom, link.template, link.base), [link]);
   const sections = useMemo(() => allSections(questions), [questions]);
   const key = `bkcg-client-${link.id}`;
   const saved = useMemo(() => lsGet(key, null), [key]);

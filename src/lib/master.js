@@ -9,9 +9,47 @@ export const EXTRA_SECTION = { id: 'additional', title: 'Additional questions', 
 
 export const tplOf = (q) => q.template || DEFAULT_TEMPLATE;
 
+// ---------------------------------------------------------------- Imported versions
+// A version replaces a template's built-in questions (you edit the questionnaire in Excel and import it).
+// It lives in your browser and travels to clients inside the link, like added questions do.
+const vkey = (t) => `bkcg-version-${t}`;
+export function loadVersion(template) {
+  const v = lsGet(vkey(template), null);
+  return v && Array.isArray(v.questions) && v.questions.length ? v : null;
+}
+export function saveVersion(template, version) {
+  const prev = loadVersion(template);
+  if (prev) lsSet(`${vkey(template)}-previous`, prev);
+  return lsSet(vkey(template), version);
+}
+export function clearVersion(template) {
+  const prev = loadVersion(template);
+  if (prev) lsSet(`${vkey(template)}-previous`, prev);
+  try { localStorage.removeItem(vkey(template)); } catch { /* ignore */ }
+}
+export function restorePreviousVersion(template) {
+  const prev = lsGet(`${vkey(template)}-previous`, null);
+  if (!prev) return false;
+  lsSet(vkey(template), prev);
+  return true;
+}
+export function hasPreviousVersion(template) { return !!lsGet(`${vkey(template)}-previous`, null); }
+
+// The questions a template starts from: an explicit base (from a client link), your imported version, or the standard set.
+export function baseQuestions(template = DEFAULT_TEMPLATE, base = null) {
+  if (Array.isArray(base) && base.length) return base;
+  return loadVersion(template)?.questions || templateOf(template).questions;
+}
+
+const normLabel = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+const BUILT_IN_LABELS = new Set(Object.values(TEMPLATES).flatMap((t) => t.questions.map((q) => normLabel(q.label))));
+
 export function loadCustom(template = null) {
   const v = lsGet(KEY, []);
-  const list = Array.isArray(v) ? v.filter(validQuestion) : [];
+  let list = Array.isArray(v) ? v.filter(validQuestion) : [];
+  // Questions that are now built in (e.g. the sample questions you imported) are dropped so nothing shows twice.
+  const kept = list.filter((q) => !BUILT_IN_LABELS.has(normLabel(q.label)));
+  if (kept.length !== list.length) { lsSet(KEY, kept); list = kept; }
   return template ? list.filter((q) => tplOf(q) === template) : list;
 }
 export function saveCustom(list) { lsSet(KEY, list.filter(validQuestion)); }
@@ -34,6 +72,8 @@ export function slugId(label, taken) {
 
 // Sections a template's questions can go in (for editors and the AI mapping prompt).
 export function sectionOptions(template = DEFAULT_TEMPLATE) {
+  const v = loadVersion(template);
+  if (v) return [...allSections(v.questions).filter((s) => s.id !== 'files' && s.id !== EXTRA_SECTION.id), EXTRA_SECTION];
   return [...templateOf(template).sections.filter((s) => s.id !== 'files'), EXTRA_SECTION];
 }
 
@@ -59,12 +99,15 @@ export function cleanQuestion(q, taken, template = DEFAULT_TEMPLATE) {
 }
 
 // Full question list for a template: built-ins + that template's custom questions, in section order.
-export function allQuestions(custom = null, template = DEFAULT_TEMPLATE) {
+export function allQuestions(custom = null, template = DEFAULT_TEMPLATE, base = null) {
   const t = templateOf(template);
+  const core = baseQuestions(t.id, base);
   const extra = (custom ?? loadCustom(t.id)).filter((q) => tplOf(q) === t.id);
   const seen = new Set();
-  const list = [...t.questions, ...extra].filter((q) => (seen.has(q.id) ? false : seen.add(q.id)));
-  const order = [...t.sections.map((s) => s.id).filter((id) => id !== 'files'), EXTRA_SECTION.id, 'files'];
+  const list = [...core, ...extra].filter((q) => (seen.has(q.id) ? false : seen.add(q.id)));
+  const order = [];
+  [...core.map((q) => q.section), ...t.sections.map((s) => s.id), ...extra.map((q) => q.section)].forEach((id) => { if (id !== 'files' && id !== EXTRA_SECTION.id && !order.includes(id)) order.push(id); });
+  order.push(EXTRA_SECTION.id, 'files');
   return order.flatMap((sid) => list.filter((q) => q.section === sid));
 }
 
@@ -73,7 +116,12 @@ export function allSections(questions) {
   const order = [];
   questions.forEach((q) => { if (!order.includes(q.section)) order.push(q.section); });
   const sorted = [...order.filter((id) => id !== 'files'), ...order.filter((id) => id === 'files')];
-  return sorted.map((id) => (id === EXTRA_SECTION.id ? EXTRA_SECTION : SECTION_REGISTRY.get(id) || { id, title: id.replace(/[_-]+/g, ' ') }));
+  return sorted.map((id) => {
+    if (id === EXTRA_SECTION.id) return EXTRA_SECTION;
+    const own = questions.find((q) => q.section === id && q.sectionTitle);
+    if (own) return { id, title: own.sectionTitle, intro: own.sectionIntro || SECTION_REGISTRY.get(id)?.intro || '' };
+    return SECTION_REGISTRY.get(id) || { id, title: id.replace(/^sec_/, '').replace(/[_-]+/g, ' ') };
+  });
 }
 
 // Add new questions to a template's master (the chosen setting: always add to master).

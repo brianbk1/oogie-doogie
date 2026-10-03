@@ -135,4 +135,18 @@ export const FINSYS_QUESTIONS = [
   { id: 'file_financials', section: 'files', type: 'file', label: 'Recent financial statements and management reports' },
   { id: 'file_systems', section: 'files', type: 'file', label: 'Systems diagram, requirements or RFP' },
   { id: 'file_other', section: 'files', type: 'file', label: 'Vendor proposals, close checklist, org chart, anything else' },
+
+  // ---- Added as standard questions (were sample "added" questions)
+  { id: 'fs_do_nothing', section: 'fs_why', type: 'long', label: 'What would happen if you did nothing for another two years?', example: 'We would need two more accountants per acquisition, and the lender would likely tighten reporting terms.' },
+  { id: 'fs_master_data', section: 'fs_systems', type: 'long', label: 'Where does the master record live today for customers, items and vendors?', example: 'Customers in HubSpot and QuickBooks (not synced), items in the warehouse system, vendors in each entity’s ledger.' },
+  { id: 'fs_po_match', section: 'fs_process', type: 'choice', label: 'Do you use purchase orders and three-way match?', options: ['Always', 'For most spend', 'Rarely', 'Never'] },
+  { id: 'fs_approvals', section: 'fs_process', type: 'choice', label: 'How are invoice and spend approvals handled today?', options: ['In the system', 'By email', 'Paper and signatures', 'It varies'] },
+  { id: 'fs_board_pack', section: 'fs_reporting', type: 'short', label: 'Who builds the monthly board pack, and how many hours does it take?', example: 'Our FP&A manager, about 30 hours a month' },
+  { id: 'fs_dimensions', section: 'fs_reporting', type: 'multi', label: 'Which dimensions must reporting slice by?', options: ['Entity', 'Location / branch', 'Department', 'Product line', 'Customer', 'Project', 'Sales rep', 'Channel'] },
+  { id: 'fs_ic_volume', section: 'fs_entities', type: 'number', unit: '', label: 'Intercompany transactions per month (estimate)' },
+  { id: 'fs_must_integrations', section: 'fs_selection', type: 'multi', label: 'Must-have integrations on day one', options: ['Payroll', 'CRM', 'Bank feeds', 'Warehouse / inventory', 'E-commerce', 'Expense management', 'Sales tax engine', 'BI / reporting'] },
+  { id: 'fs_run_cost', section: 'fs_budget', type: 'choice', label: 'Annual license and support cost you would accept after go-live', options: ['Under $50K', '$50K–$100K', '$100K–$200K', '$200K+', 'Not sure'] },
+  { id: 'fs_owner', section: 'fs_people', type: 'choice', label: 'Who will own the system after go-live?', options: ['Finance', 'IT', 'Shared finance and IT', 'Outside partner', 'Not decided'] },
+  { id: 'fs_board_selection', section: 'people', type: 'choice', label: 'How involved will the board or PE sponsor be in choosing the vendor?', options: ['Not involved', 'Informed', 'Approves the final choice', 'Actively involved'] },
+  { id: 'anything_else', section: 'additional', type: 'long', label: 'Is there anything we didn’t ask that we should have?' },
 ];

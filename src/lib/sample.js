@@ -62,7 +62,19 @@ export const SAMPLE_ANSWERS = {
   stakeholders: 'Sam Patel (CTO): owns roadmap. Priya Nair (VP CS): owns retention. Ellen Wu (board chair): pushing for profitability by 2027.',
   kickoff_attendees: 'Dana, Sam, Priya, Kim',
   board_involvement: 'Will review the plan',
-  file_pitch: [], file_financials: [], file_board: [], file_other: [],
+  fiscal_year_end: 'December',
+  one_thing: 'A clear decision on which segment we lead with, that Sam and Priya both sign up to.',
+  stop_doing: 'Chasing single-location practices through the starter tier, and building custom reports for individual customers.',
+  half_revenue_customers: 38,
+  best_customer_words: 'Implementation support is excellent and the multi-location reporting saves the COO hours every month.',
+  avg_discount: 18,
+  pipeline_coverage: 1.6,
+  new_product_share: 12,
+  rate_execution: 3,
+  finance_artifacts: ['Monthly board pack', 'Annual budget', 'KPI dashboard'],
+  decision_style: 'Leadership consensus',
+  anything_else: 'Our biggest renewal (a 40-location group) is up in April.',
+  file_answers: [], file_pitch: [], file_financials: [], file_board: [], file_other: [],
 };
 
 // A reply in the format the "Copy prompt" asks any AI to return, written for the sample client.
@@ -250,7 +262,19 @@ export const FINSYS_SAMPLE_ANSWERS = {
   tried: 'Bought a consolidation add-on in 2025; it needed a common chart of accounts we did not have, so we stopped using it. Started a NetSuite evaluation in 2024 that stalled when the previous CFO left.',
   why_failed: 'We tried to fix tools before agreeing on a common chart of accounts and how acquired companies would run. Nobody owned the project full time.',
   fs_biggest_fear: 'That we go live and cannot ship or invoice for two weeks, or that we spend $500K rebuilding our old processes in a new system.',
-  file_coa: [], file_financials: [], file_systems: [], file_other: [],
+  fs_do_nothing: 'We would need two more accountants per acquisition, and the lender would likely tighten reporting terms when we refinance in 2028.',
+  fs_master_data: 'Customers in HubSpot and in each ledger (not synced), items in the warehouse system, vendors duplicated across three ledgers.',
+  fs_po_match: 'For most spend',
+  fs_approvals: 'By email',
+  fs_board_pack: 'Our FP&A manager, about 30 hours a month',
+  fs_dimensions: ['Entity', 'Location / branch', 'Product line', 'Customer', 'Sales rep'],
+  fs_ic_volume: 450,
+  fs_must_integrations: ['Payroll', 'CRM', 'Bank feeds', 'Warehouse / inventory', 'Sales tax engine'],
+  fs_run_cost: '$100K–$200K',
+  fs_owner: 'Shared finance and IT',
+  fs_board_selection: 'Approves the final choice',
+  anything_else: 'Ellen expects a vendor recommendation at the February board meeting.',
+  file_answers: [], file_coa: [], file_financials: [], file_systems: [], file_other: [],
 };
 
 export const FINSYS_SAMPLE_AI_REPLY = `\`\`\`json

@@ -39,7 +39,7 @@ export async function buildResponseZip({ link, questions, answers, complete, get
   const doc = {
     format: FORMAT, version: 1, linkId: link?.id || 'open', template: link?.template || 'strategy', company,
     complete: !!complete, savedAt: new Date().toISOString(),
-    questions: questions.map(({ id, section, type, label, options, unit, low, high, custom, template }) => ({ id, section, type, label, options, unit, low, high, custom, template })),
+    questions: questions.map(({ id, section, sectionTitle, type, label, options, unit, low, high, custom, template }) => ({ id, section, sectionTitle, type, label, options, unit, low, high, custom, template })),
     answers: plain,
   };
   zip.file('responses.json', JSON.stringify(doc, null, 2));

@@ -7,7 +7,7 @@ import MapFlow from './MapFlow.jsx';
 import MasterQuestions from './MasterQuestions.jsx';
 import { fmtSize } from './QuestionInput.jsx';
 import { listClients, getClient, saveClient, deleteClient, newClientId, saveBlob, getBlob, backupZip, restoreZip } from '../lib/clients.js';
-import { allQuestions, loadCustom, TEMPLATES, templateOf } from '../lib/master.js';
+import { allQuestions, loadCustom, loadVersion, TEMPLATES, templateOf } from '../lib/master.js';
 import { readResponseFile, answeredCount } from '../lib/responseFile.js';
 import { extractText } from '../lib/mapping.js';
 import { readOfflineWorkbook, offlineWorkbookBlob } from '../lib/offline.js';
@@ -262,7 +262,7 @@ function LinkTab({ client, update }) {
   const [msg, setMsg] = useState(null);
   const cfg = client.linkCfg;
   if (!cfg) return <div className="callout note">This client was imported from a file, so there is no questionnaire link. Create a new client link if you want them to fill in the questionnaire.</div>;
-  const url = makeLink({ ...cfg, custom: loadCustom(cfg.template || 'strategy') });
+  const url = makeLink({ ...cfg, custom: loadCustom(cfg.template || 'strategy'), base: loadVersion(cfg.template || 'strategy')?.questions || null });
   const first = (cfg.contact || '').split(' ')[0];
   const s = loadSettings();
   const mail = `mailto:?subject=${encodeURIComponent(`Before we kick off — a short questionnaire for ${cfg.company}`)}&body=${encodeURIComponent(`Hi ${first || 'there'},\n\nAhead of our kickoff, please fill in this questionnaire. It takes about 30 minutes, saves as you go, and you can stop and come back on the same computer:\n\n${url}\n\nAt the end it gives you a file to email back to me.${cfg.due ? ` If you can, please send it by ${cfg.due}.` : ''}\n\nThanks,\n${s.consultant || ''}\nThe BK Consulting Group`)}`;
